@@ -1,5 +1,6 @@
 require File.dirname(__FILE__) + "/helpers"
 require File.dirname(__FILE__) + "/../helpers/acceptance/textfile_notifier"
+require File.dirname(__FILE__) + "/../helpers/acceptance/markdown_notifier"
 
 class BuildNotificationsTest < Test::Unit::AcceptanceTestCase
   story <<-EOS
@@ -32,5 +33,38 @@ class BuildNotificationsTest < Test::Unit::AcceptanceTestCase
     notification.should =~ /Commit Date: (.+)/
     notification.should =~ /Commit Message: This commit will work/
     notification.should =~ /Build Output:\n\nRunning tests...\n/
+  end
+
+  scenario "setting multiple notifiers on various project" do
+    git_repo(:my_test_project).add_successful_commit
+    git_repo(:another_test_project).add_successful_commit
+
+    Project.gen(:my_test_project, :uri => git_repo(:my_test_project).path)
+    Project.gen(:name => "Another Test Project", :uri  => git_repo(:another_test_project).path)
+
+    login_as "admin", "test"
+
+    visit "/my-test-project"
+
+    click_link "Edit Project"
+    check "enabled_notifiers_textfile"
+    fill_in "notifiers[Textfile][file]", :with => "/tmp/my-test-project_notifications.txt"
+    click_button "Update Project"
+
+    visit "/another-test-project"
+    click_link "Edit Project"
+    check "enabled_notifiers_markdown"
+    fill_in "notifiers[Markdown][file]", :with => "/tmp/another-test-project_notifications.mkdn"
+    click_button "Update Project"
+
+    Project.first(:permalink => "my-test-project").notifiers.tap do |notifiers|
+      notifiers.length.should == 1
+      notifiers.first.name.should == "Textfile"
+    end
+
+    Project.first(:permalink => "another-test-project").notifiers.tap do |notifiers|
+      notifiers.length.should == 1
+      notifiers.first.name.should == "Markdown"
+    end
   end
 end
