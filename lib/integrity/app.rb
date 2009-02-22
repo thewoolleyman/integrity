@@ -25,7 +25,7 @@ module Integrity
       login_required if session[:user]
     end
 
-    get "/" do
+    get "/?" do
       @projects = Project.only_public_unless(authorized?)
       show :home, :title => "projects"
     end
@@ -34,7 +34,7 @@ module Integrity
       login_required
 
       session[:user] = current_user
-      redirect root_url
+      redirect root_url.to_s
     end
 
     get "/new" do
@@ -51,7 +51,7 @@ module Integrity
 
       if @project.save
         @project.enable_notifiers(params["enabled_notifiers[]"], params["notifiers"])
-        redirect project_url(@project)
+        redirect project_url(@project).to_s
       else
         show :new, :title => ["projects", "new project"]
       end
@@ -73,7 +73,7 @@ module Integrity
 
       if current_project.update_attributes(params[:project_data])
         current_project.enable_notifiers(params["enabled_notifiers"], params["notifiers"])
-        redirect project_url(current_project)
+        redirect project_url(current_project).to_s
       else
         show :new, :title => ["projects", current_project.permalink, "edit"]
       end
@@ -83,7 +83,7 @@ module Integrity
       login_required
 
       current_project.destroy
-      redirect root_url
+      redirect root_url.to_s
     end
 
     get "/:project/edit" do
@@ -109,7 +109,7 @@ module Integrity
       login_required
 
       current_project.build
-      redirect project_url(current_project)
+      redirect project_url(current_project).to_s
     end
 
     get "/:project/commits/:commit" do
@@ -126,7 +126,7 @@ module Integrity
       login_required
 
       current_project.build(params[:commit])
-      redirect commit_url(current_commit)
+      redirect commit_url(current_commit).to_s
     end
 
     get "/integrity.css" do
