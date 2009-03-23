@@ -2,6 +2,7 @@ $:.unshift File.expand_path(File.dirname(__FILE__))
 
 require "rubygems"
 require "json"
+require "haml"
 require "dm-core"
 require "dm-validations"
 require "dm-types"
@@ -35,22 +36,18 @@ module Integrity
     DataMapper.setup(:default, config[:database_uri])
   end
 
-  def self.root
-    Pathname.new(File.dirname(__FILE__)).join("..").expand_path
-  end
-
   def self.default_configuration
     @defaults ||= { :database_uri      => "sqlite3::memory:",
-                    :export_directory  => root / "exports",
+                    :export_directory  => "/tmp/exports",
                     :log               => STDOUT,
                     :base_uri          => "http://localhost:8910",
                     :use_basic_auth    => false,
                     :build_all_commits => true,
-                    :log_debug_info    => false }.dup
+                    :log_debug_info    => false }
   end
 
   def self.config
-    @config ||= default_configuration
+    @config ||= default_configuration.dup
   end
 
   def self.config=(options)
@@ -66,13 +63,8 @@ module Integrity
       logger.formatter = LogFormatter.new
     end
   end
+  private_class_method :logger
 
-  def self.version
-    YAML.load_file(File.dirname(__FILE__) + "/../VERSION.yml").
-      values.join(".")
-  end
-
-  private
     class LogFormatter < Logger::Formatter
       def call(severity, time, progname, msg)
         time.strftime("[%H:%M:%S] ") + msg2str(msg) + "\n"

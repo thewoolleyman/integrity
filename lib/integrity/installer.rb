@@ -1,5 +1,5 @@
-require File.dirname(__FILE__) + "/../integrity"
 require "thor"
+require File.dirname(__FILE__) + "/../integrity"
 
 module Integrity
   class Installer < Thor
@@ -7,16 +7,30 @@ module Integrity
 
     desc "install [PATH]",
        "Copy template files to PATH for desired deployement strategy
-       (either Thin or Passenger). Next, go there and edit them."
-    method_options :passenger => false, :thin => false
+       (either Thin, Passenger or Heroku). Next, go there and edit them."
+    method_options :passenger => :boolean,
+                   :thin      => :boolean,
+                   :heroku    => :boolean
     def install(path)
       @root = Pathname(path).expand_path
 
-      create_dir_structure
-      copy_template_files
-      edit_template_files
-      migrate_db(root.join("config.yml"))
-      after_setup_message
+      if options[:heroku]
+        cp_r Pathname(__FILE__).join("../../../config/heroku"), root
+        puts <<EOF
+Your Integrity install is ready to be deployed onto Heroku. Next steps:
+
+  1. git init && git add . && git commit -am "Initial import"
+  2. heroku create
+  3. git push heroku master
+  4. heroku rake db:migrate
+EOF
+      else
+        create_dir_structure
+        copy_template_files
+        edit_template_files
+        migrate_db(root.join("config.yml"))
+        after_setup_message
+      end
     end
 
     desc "migrate_db [CONFIG]",
@@ -55,6 +69,7 @@ module Integrity
 
       def create_dir_structure
         mkdir_p root
+
         mkdir_p root / "builds"
         mkdir_p root / "log"
 
@@ -65,9 +80,9 @@ module Integrity
       end
 
       def copy_template_files
-        copy "config/config.sample.ru"
-        copy "config/config.sample.yml"
-        copy "config/thin.sample.yml" if options[:thin]
+        copy "config.sample.ru"
+        copy "config.sample.yml"
+        copy "thin.sample.yml" if options[:thin]
       end
 
       def edit_template_files
@@ -90,26 +105,27 @@ module Integrity
       end
 
       def after_setup_message
-        puts
-        puts %Q(Awesome! Integrity was installed successfully!)
-        puts
-        puts %Q(If you want to enable notifiers, install the gems and then require them)
-        puts %Q(in #{root}/config.ru)
-        puts
-        puts %Q(For example:)
-        puts
-        puts %Q(  sudo gem install -s http://gems.github.com foca-integrity-email)
-        puts
-        puts %Q(And then in #{root}/config.ru add:)
-        puts
-        puts %Q(  require "notifier/email")
-        puts
-        puts %Q(Don't forget to tweak #{root / "config.yml"} to your needs.)
+        puts <<EOF
+Awesome! Integrity was installed successfully!
+
+If you want to enable notifiers, install the gems and then require them
+in #{root}/config.ru
+
+For example:
+
+    sudo gem install -s http://gems.github.com foca-integrity-email
+
+And then in #{root}/config.ru add:
+
+    require "notifier/email"
+
+Don't forget to tweak #{root / "config.yml"} to your needs.
+EOF
       end
 
-      def copy(path)
-        cp(File.dirname(__FILE__) + "/../../#{path}",
-          root.join(File.basename(path).gsub(/\.sample/, "")))
+      def copy(source)
+        cp(Pathname(__FILE__).dirname.join("../../config", source),
+          root.join(File.basename(source).gsub(/\.sample/, "")))
       end
   end
 end
